@@ -2808,6 +2808,84 @@ footer {
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
+/* ─── UPI PAYMENT MODAL ───────────────────────────────────────────────────── */
+#upiPayModal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 9000;
+  display: none;
+  align-items: center; justify-content: center;
+}
+.upi-modal-box {
+  background: var(--dark);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 420px; width: 90%;
+  text-align: center;
+}
+.upi-modal-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; letter-spacing: 3px;
+  color: var(--white); margin-bottom: 8px;
+}
+.upi-modal-amount {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px; color: var(--green);
+  letter-spacing: 2px; margin: 12px 0;
+}
+.upi-modal-ref {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px; color: var(--dim);
+  letter-spacing: 1px; margin-bottom: 28px;
+}
+.upi-pay-btns {
+  display: flex; flex-direction: column; gap: 12px;
+  margin-bottom: 20px;
+}
+.upi-app-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px; border-radius: 8px;
+  font-family: 'Barlow', sans-serif; font-weight: 700;
+  font-size: 14px; letter-spacing: 1px; text-transform: uppercase;
+  text-decoration: none; border: none; cursor: none;
+  transition: all 0.2s;
+}
+.upi-app-btn.gpay { background: #1a73e8; color: #fff; }
+.upi-app-btn.gpay:hover { background: #1557b0; }
+.upi-app-btn.phonepe { background: #5f259f; color: #fff; }
+.upi-app-btn.phonepe:hover { background: #4a1d7a; }
+.upi-confirm-btn {
+  width: 100%; padding: 14px;
+  background: var(--green); border: none; color: #000;
+  font-family: 'Barlow', sans-serif; font-weight: 800;
+  font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
+  border-radius: 8px; cursor: none; transition: all 0.2s; margin-bottom: 10px;
+}
+.upi-confirm-btn:hover { background: #00a862; }
+.upi-cancel-btn {
+  background: none; border: none; color: var(--dim);
+  font-size: 12px; cursor: none; font-family: 'Space Mono', monospace;
+  letter-spacing: 1px; transition: color 0.2s;
+}
+.upi-cancel-btn:hover { color: var(--white); }
+.form-input.invalid {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 2px rgba(232,35,42,0.2);
+}
+.field-error {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--red);
+  letter-spacing: 1px;
+  margin-top: 4px;
+  display: none;
+}
+.field-error.show { display: block; }
+@keyframes trackPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,229,255,0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(0,229,255,0); }
+}
 </style>
 </head>
 <body>
@@ -2818,6 +2896,23 @@ footer {
 
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- UPI PAYMENT MODAL -->
+<div id="upiPayModal">
+  <div class="upi-modal-box">
+    <div class="upi-modal-title">💳 COMPLETE PAYMENT</div>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:4px;font-family:'Space Mono',monospace;letter-spacing:1px;">AMOUNT DUE</div>
+    <div class="upi-modal-amount" id="upiAmount">₹0</div>
+    <div class="upi-modal-ref">Order Ref: <span id="upiOrderRef">#SOH-000000</span></div>
+    <div class="upi-pay-btns">
+      <a class="upi-app-btn gpay" id="gpayLink" href="#" target="_blank">🟦 Pay with Google Pay</a>
+      <a class="upi-app-btn phonepe" id="phonepeLink" href="#" target="_blank">🟣 Pay with PhonePe / Any UPI</a>
+    </div>
+    <button class="upi-confirm-btn" onclick="confirmUpiPaid()">✓ I HAVE COMPLETED THE PAYMENT</button>
+    <br/>
+    <button class="upi-cancel-btn" onclick="cancelUpiPay()">← Go back</button>
+  </div>
+</div>
 
 <!-- CART OVERLAY + DRAWER -->
 <div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
@@ -3014,7 +3109,7 @@ footer {
         </div>
       </div>
       <div class="footer-bottom">
-        <div class="footer-copy">© 2026 <span>STYLISH HUB</span>. All rights reserved. Made by Yashraj Gaikwad.</div>
+        <div class="footer-copy">© 2026 <span>STYLISH HUB</span>. All rights reserved. Made with ❤️ for sneakerheads.</div>
         <div style="display:flex;gap:16px;">
           <a href="#" style="color:var(--muted);font-size:11px;font-family:'Space Mono',monospace;text-decoration:none;">PRIVACY</a>
           <a href="#" style="color:var(--muted);font-size:11px;font-family:'Space Mono',monospace;text-decoration:none;">TERMS</a>
@@ -3071,7 +3166,8 @@ footer {
           </div>
           <div class="form-group">
             <label class="form-label">Phone Number</label>
-            <input class="form-input" type="tel" placeholder="+91 98765 43210" id="phone"/>
+            <input class="form-input" type="tel" placeholder="+91 98765 43210" id="phone" maxlength="13" oninput="validatePhone(this)" inputmode="numeric"/>
+            <span class="field-error" id="phoneError">⚠ Enter valid 10-digit phone number</span>
           </div>
         </div>
       </div>
@@ -3111,7 +3207,8 @@ footer {
           </div>
           <div class="form-group">
             <label class="form-label">PIN Code</label>
-            <input class="form-input" type="text" placeholder="413006" id="pin"/>
+            <input class="form-input" type="text" placeholder="413006" id="pin" maxlength="6" oninput="validateDigits(this, 6)" inputmode="numeric"/>
+            <span class="field-error" id="pinError">⚠ PIN must be 6 digits only</span>
           </div>
           <div class="form-group">
             <label class="form-label">Country</label>
@@ -3394,16 +3491,101 @@ footer {
   <nav>
     <div class="nav-inner">
       <a href="#" class="nav-logo" onclick="showPage('storePage')">STYLISH <span>HUB</span></a>
-    <div class="success-icon">✓</div>
-    <h1 class="success-title">ORDER PLACED!</h1>
-    <p class="success-sub">Your sneakers are on their way! You'll receive a confirmation email shortly with tracking details.</p>
-    <div class="order-id">
-      <div class="order-id-label">Order ID</div>
-      <div class="order-id-val" id="orderIdDisplay">#KL-000000</div>
     </div>
-    <div style="display:flex;gap:16px;justify-content:center;">
+  </nav>
+  <div style="min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;">
+    <div style="text-align:center;padding:60px 40px;max-width:560px;">
+      <div class="success-icon">✓</div>
+      <h1 class="success-title">ORDER PLACED!</h1>
+      <p class="success-sub">Your sneakers are on their way! You'll receive a confirmation email shortly with tracking details.</p>
+      <div class="order-id">
+        <div class="order-id-label">Order ID</div>
+        <div class="order-id-val" id="orderIdDisplay">#KL-000000</div>
+      </div>
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn-primary" onclick="continueShopping()">CONTINUE SHOPPING</button>
+        <button class="btn-outline" onclick="showTrackOrder()">TRACK ORDER</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     TRACK ORDER PAGE
+═══════════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="trackPage">
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="nav-logo" onclick="showPage('storePage')">STYLISH <span>HUB</span></a>
+      <ul class="nav-links">
+        <li><a href="#" onclick="showPage('storePage')">← Back to Store</a></li>
+      </ul>
+    </div>
+  </nav>
+  <div style="min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;">
+    <div style="text-align:center;padding:60px 40px;max-width:600px;width:100%;">
+
+      <!-- ORDER ID -->
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:2px;margin-bottom:8px;">ORDER REFERENCE</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--red);letter-spacing:3px;margin-bottom:40px;" id="trackOrderId">#SOH-000000</div>
+
+      <!-- PROGRESS STEPS -->
+      <div style="position:relative;margin-bottom:48px;">
+        <!-- Progress line -->
+        <div style="position:absolute;top:24px;left:12.5%;right:12.5%;height:3px;background:var(--border);border-radius:2px;z-index:0;"></div>
+        <div style="position:absolute;top:24px;left:12.5%;width:25%;height:3px;background:var(--green);border-radius:2px;z-index:1;transition:width 0.5s;"></div>
+
+        <!-- Steps -->
+        <div style="display:flex;justify-content:space-between;position:relative;z-index:2;">
+
+          <!-- Step 1: Order Placed -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;flex:1;">
+            <div style="width:48px;height:48px;border-radius:50%;background:var(--green);border:3px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:18px;">✓</div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--green);text-transform:uppercase;">Placed</div>
+          </div>
+
+          <!-- Step 2: Processing -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;flex:1;">
+            <div style="width:48px;height:48px;border-radius:50%;background:var(--card);border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;animation:trackPulse 1.5s ease-in-out infinite;">⚙️</div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;font-weight:700;">Processing</div>
+          </div>
+
+          <!-- Step 3: Shipped -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;flex:1;">
+            <div style="width:48px;height:48px;border-radius:50%;background:var(--card);border:3px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;opacity:0.4;">🚚</div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Shipped</div>
+          </div>
+
+          <!-- Step 4: Delivered -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;flex:1;">
+            <div style="width:48px;height:48px;border-radius:50%;background:var(--card);border:3px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;opacity:0.4;">📦</div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Delivered</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- STATUS CARD -->
+      <div style="background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);border-radius:12px;padding:28px;margin-bottom:32px;">
+        <div style="font-size:28px;margin-bottom:10px;">⚙️</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--accent);margin-bottom:8px;">ORDER IS BEING PROCESSED</div>
+        <div style="font-size:13px;color:var(--dim);line-height:1.7;">We've received your order and our team is verifying your payment and preparing your sneakers for dispatch. You'll receive an update once your order is shipped.</div>
+      </div>
+
+      <!-- EST DELIVERY -->
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:32px;">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 24px;text-align:center;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:4px;">EST. DELIVERY</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--white);letter-spacing:2px;">2 – 4 BUSINESS DAYS</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 24px;text-align:center;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:4px;">CURRENT STATUS</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--accent);letter-spacing:2px;">PROCESSING</div>
+        </div>
+      </div>
+
       <button class="btn-primary" onclick="continueShopping()">CONTINUE SHOPPING</button>
-      <button class="btn-outline" onclick="continueShopping()">TRACK ORDER</button>
     </div>
   </div>
 </div>
@@ -3494,7 +3676,7 @@ footer {
           </label>
         </div>
         <div class="profile-name" id="profileName">Demo Customer</div>
-        <div class="profile-email" id="profileEmail">customer@demo.com</div>
+        <div class="profile-email" id="profileEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="fb988e888f94969e89bb9f9e9694d5989496">[email&#160;protected]</a></div>
       </div>
 
       <ul class="profile-menu">
@@ -3985,9 +4167,81 @@ footer {
           <div class="admin-section">
             <div class="admin-section-header">
               <h2 class="admin-section-title">Product Management</h2>
-              <button class="admin-header-btn">+ Add Product</button>
+              <button class="admin-header-btn" onclick="toggleAddProductForm()">+ Add Product</button>
             </div>
-            <p style="color:var(--dim);text-align:center;padding:40px 0;">Product management interface coming soon...</p>
+
+            <!-- ADD PRODUCT FORM -->
+            <div id="addProductForm" style="display:none;background:var(--black);border:1px solid var(--border);border-radius:8px;padding:24px;margin-bottom:24px;">
+              <h3 style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--white);margin-bottom:20px;">ADD NEW PRODUCT TO INVENTORY</h3>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Product Name *</label>
+                  <input class="profile-form-input" type="text" id="newProdName" placeholder="e.g. Air Max Pulse"/>
+                </div>
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Brand *</label>
+                  <input class="profile-form-input" type="text" id="newProdBrand" placeholder="e.g. Nike"/>
+                </div>
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Price (₹) *</label>
+                  <input class="profile-form-input" type="number" id="newProdPrice" placeholder="e.g. 12999"/>
+                </div>
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Original Price (₹)</label>
+                  <input class="profile-form-input" type="number" id="newProdOrig" placeholder="e.g. 15999 (optional)"/>
+                </div>
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Category *</label>
+                  <select class="profile-form-input" id="newProdCategory">
+                    <option value="nike">Nike</option>
+                    <option value="jordan">Jordan</option>
+                    <option value="newbalance">New Balance</option>
+                    <option value="adidas">Adidas</option>
+                    <option value="other">Other Brands</option>
+                  </select>
+                </div>
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Tag</label>
+                  <select class="profile-form-input" id="newProdTag">
+                    <option value="">None</option>
+                    <option value="new">NEW</option>
+                    <option value="hot">HOT</option>
+                    <option value="sale">SALE</option>
+                    <option value="limited">LIMITED</option>
+                  </select>
+                </div>
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Colorway</label>
+                  <input class="profile-form-input" type="text" id="newProdColorway" placeholder="e.g. White/Black"/>
+                </div>
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Stock Quantity *</label>
+                  <input class="profile-form-input" type="number" id="newProdStock" placeholder="e.g. 20"/>
+                </div>
+                <div class="profile-form-group">
+                  <label class="profile-form-label">Emoji Icon</label>
+                  <input class="profile-form-input" type="text" id="newProdEmoji" placeholder="e.g. 👟" maxlength="4"/>
+                </div>
+              </div>
+              <div style="display:flex;gap:12px;margin-top:20px;">
+                <button class="profile-save-btn" onclick="saveNewProduct()" style="width:auto;padding:12px 32px;">💾 Save to Inventory</button>
+                <button class="profile-save-btn" onclick="toggleAddProductForm()" style="width:auto;padding:12px 24px;background:var(--card);color:var(--dim);border:1px solid var(--border);">Cancel</button>
+              </div>
+            </div>
+
+            <!-- INVENTORY TABLE -->
+            <div class="admin-section" style="margin-top:0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:1px;">LIVE INVENTORY — <span id="inventoryCount" style="color:var(--green);">0 products</span></div>
+                <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--gold);">⚠ LOW STOCK: <span id="lowStockCount">0</span> items</div>
+              </div>
+              <table class="admin-table">
+                <thead><tr>
+                  <th>PRODUCT</th><th>BRAND</th><th>PRICE</th><th>CATEGORY</th><th>STOCK</th><th>STATUS</th><th>ACTION</th>
+                </tr></thead>
+                <tbody id="inventoryTableBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -4019,7 +4273,7 @@ footer {
 <!-- ═══════════════════════════════════════════════════════════════════════════
      JAVASCRIPT
 ═══════════════════════════════════════════════════════════════════════════ -->
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 
 /* ─── CURSOR ──────────────────────────────────────────────────────────────── */
 const cursor = document.getElementById('cursor');
@@ -4283,12 +4537,16 @@ function formatExpiry(el) {
 /* ─── PLACE ORDER ───────────────────────────────────────────────────────────── */
 function placeOrder() {
   const fname = document.getElementById('fname').value.trim();
+  const lname = document.getElementById('lname').value.trim();
   const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
   const addr1 = document.getElementById('addr1').value.trim();
+  const addr2 = document.getElementById('addr2').value.trim();
   const city  = document.getElementById('city').value.trim();
+  const state = document.getElementById('state').value.trim();
   const pin   = document.getElementById('pin').value.trim();
 
-  if (!fname || !email || !addr1 || !city || !pin) {
+  if (!fname || !email || !addr1 || !city || !pin || !state) {
     showToast('⚠️ Please fill all required fields', true);
     return;
   }
@@ -4300,19 +4558,80 @@ function placeOrder() {
       return;
     }
   }
+  if (selectedPayment === 'upi') {
+    const upiId = document.getElementById('upiId').value.trim();
+    if (!upiId || !upiId.includes('@')) {
+      showToast('⚠️ Please enter a valid UPI ID (e.g. name@upi)', true);
+      return;
+    }
+  }
 
+  const subtotal = cart.reduce((s,c) => s + c.price * c.qty, 0);
+  const tax = Math.round(subtotal * 0.18);
+  const codFee = selectedPayment === 'cod' ? 49 : 0;
+  const total = subtotal + tax + codFee;
   const orderId = '#SOH-' + Math.floor(100000 + Math.random() * 900000);
-  document.getElementById('orderIdDisplay').textContent = orderId;
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
 
-  // Reset cart
+  // ── Build order object ───────────────────────────────────────
+  const orderData = {
+    id: orderId,
+    date: dateStr,
+    customer: fname + ' ' + lname,
+    email, phone,
+    address: { line1: addr1, line2: addr2, city, state, pin, country: 'India' },
+    items: cart.map(c => ({ name: c.name, brand: c.brand, price: c.price, qty: c.qty, emoji: c.emoji })),
+    subtotal, tax, codFee, total,
+    payment: selectedPayment.toUpperCase(),
+    status: 'pending'
+  };
+
+  // ── Save to localStorage (simulates DB) ─────────────────────
+  const existing = JSON.parse(localStorage.getItem('stylish_orders') || '[]');
+  existing.unshift(orderData);
+  localStorage.setItem('stylish_orders', JSON.stringify(existing));
+
+  // ── UPI: open payment link ───────────────────────────────────
+  if (selectedPayment === 'upi') {
+    const upiId = document.getElementById('upiId').value.trim();
+    const upiUrl = `upi://pay?pa=${upiId}&pn=StylishHub&am=${total}&cu=INR&tn=Order${orderId.replace('#','')}`;
+    const gpayUrl = `https://gpay.app.goo.gl/R5TCK6?pa=${encodeURIComponent('stylishhub@okaxis')}&pn=StylishHub&am=${total}&cu=INR&tn=${encodeURIComponent('Order ' + orderId)}`;
+    // Show UPI modal
+    document.getElementById('upiAmount').textContent = '₹' + total.toLocaleString();
+    document.getElementById('upiOrderRef').textContent = orderId;
+    document.getElementById('gpayLink').href = gpayUrl;
+    document.getElementById('phonepeLink').href = upiUrl;
+    document.getElementById('upiPayModal').style.display = 'flex';
+    pendingOrderData = orderData;
+    return;
+  }
+
+  finaliseOrder(orderData);
+}
+
+let pendingOrderData = null;
+
+function finaliseOrder(orderData) {
+  document.getElementById('orderIdDisplay').textContent = orderData.id;
   cart = [];
   updateCartUI();
   document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
     btn.classList.remove('added');
     btn.textContent = '+';
   });
-
+  if (document.getElementById('upiPayModal'))
+    document.getElementById('upiPayModal').style.display = 'none';
   showPage('successPage');
+  showToast('✓ Order saved successfully!', false);
+}
+
+function confirmUpiPaid() {
+  if (pendingOrderData) finaliseOrder(pendingOrderData);
+}
+
+function cancelUpiPay() {
+  document.getElementById('upiPayModal').style.display = 'none';
 }
 
 function continueShopping() {
@@ -4649,7 +4968,8 @@ function switchAdminTab(e, tab) {
 }
 
 function loadAdminData() {
-  // Generate sample orders
+  // Load real orders from localStorage, fall back to sample data
+  const stored = JSON.parse(localStorage.getItem('stylish_orders') || '[]');
   const sampleOrders = [
     { id: '#SOH-145623', customer: 'Rahul Sharma', products: 2, total: 24990, status: 'delivered', date: '2026-02-15', payment: 'UPI' },
     { id: '#SOH-145622', customer: 'Priya Patel', products: 1, total: 14995, status: 'shipped', date: '2026-02-16', payment: 'Card' },
@@ -4657,23 +4977,16 @@ function loadAdminData() {
     { id: '#SOH-145620', customer: 'Sneha Desai', products: 1, total: 10999, status: 'pending', date: '2026-02-17', payment: 'UPI' },
     { id: '#SOH-145619', customer: 'Vikram Singh', products: 2, total: 31990, status: 'delivered', date: '2026-02-14', payment: 'Card' },
   ];
-  
-  // Fill recent orders
-  const recentBody = document.getElementById('recentOrdersBody');
-  recentBody.innerHTML = sampleOrders.slice(0,5).map(order => `
-    <tr>
-      <td><strong>${order.id}</strong></td>
-      <td>${order.customer}</td>
-      <td>${order.products} items</td>
-      <td><strong>₹${order.total.toLocaleString()}</strong></td>
-      <td><span class="admin-badge ${order.status}">${order.status.toUpperCase()}</span></td>
-      <td>${order.date}</td>
-      <td><button class="admin-action-btn" onclick="viewOrder('${order.id}')">View</button></td>
-    </tr>`).join('');
-  
-  // Fill all orders
-  const allBody = document.getElementById('allOrdersBody');
-  allBody.innerHTML = sampleOrders.map(order => `
+
+  // Merge stored real orders with sample orders
+  const realOrders = stored.map(o => ({
+    id: o.id, customer: o.customer,
+    products: o.items ? o.items.reduce((s,i) => s + i.qty, 0) : 1,
+    total: o.total, status: o.status, date: o.date, payment: o.payment
+  }));
+  const allOrders = [...realOrders, ...sampleOrders];
+
+  const renderRow = (order) => `
     <tr>
       <td><strong>${order.id}</strong></td>
       <td>${order.customer}</td>
@@ -4682,12 +4995,151 @@ function loadAdminData() {
       <td>${order.payment}</td>
       <td><span class="admin-badge ${order.status}">${order.status.toUpperCase()}</span></td>
       <td>${order.date}</td>
-      <td><button class="admin-action-btn" onclick="viewOrder('${order.id}')">View</button></td>
-    </tr>`).join('');
+      <td>
+        <select class="admin-action-btn" onchange="updateOrderStatus('${order.id}', this.value)" style="padding:6px;background:var(--card);color:var(--dim);border:1px solid var(--border);border-radius:4px;cursor:none;">
+          <option value="pending" ${order.status==='pending'?'selected':''}>Pending</option>
+          <option value="processing" ${order.status==='processing'?'selected':''}>Processing</option>
+          <option value="shipped" ${order.status==='shipped'?'selected':''}>Shipped</option>
+          <option value="delivered" ${order.status==='delivered'?'selected':''}>Delivered</option>
+          <option value="cancelled" ${order.status==='cancelled'?'selected':''}>Cancelled</option>
+        </select>
+      </td>
+    </tr>`;
+
+  const recentBody = document.getElementById('recentOrdersBody');
+  recentBody.innerHTML = allOrders.slice(0,5).map(renderRow).join('');
+
+  const allBody = document.getElementById('allOrdersBody');
+  allBody.innerHTML = allOrders.map(renderRow).join('');
+
+  // Update dashboard stats
+  const totalRevenue = allOrders.reduce((s,o) => s + o.total, 0);
+  const statEls = document.querySelectorAll('.admin-stat-value');
+  if (statEls[0]) statEls[0].textContent = allOrders.length;
+  if (statEls[1]) statEls[1].textContent = '₹' + (totalRevenue/100000).toFixed(1) + 'L';
+
+  // Load inventory
+  loadInventory();
 }
 
 function viewOrder(orderId) {
   showToast(`📦 Viewing order ${orderId}`, false);
+}
+
+function updateOrderStatus(orderId, newStatus) {
+  const orders = JSON.parse(localStorage.getItem('stylish_orders') || '[]');
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx !== -1) {
+    orders[idx].status = newStatus;
+    localStorage.setItem('stylish_orders', JSON.stringify(orders));
+    showToast(`✓ Order ${orderId} updated to ${newStatus.toUpperCase()}`, false);
+  } else {
+    showToast(`✓ Status updated to ${newStatus.toUpperCase()}`, false);
+  }
+}
+
+/* ─── INVENTORY ─────────────────────────────────────────────────────────────── */
+function getInventory() {
+  const defaultInventory = products.map(p => ({
+    id: p.id, name: p.name, brand: p.brand, price: p.price,
+    category: p.category, tag: p.tag || '', emoji: p.emoji,
+    colorway: p.colorway, stock: 20
+  }));
+  const stored = localStorage.getItem('stylish_inventory');
+  return stored ? JSON.parse(stored) : defaultInventory;
+}
+
+function saveInventory(inv) {
+  localStorage.setItem('stylish_inventory', JSON.stringify(inv));
+}
+
+function loadInventory() {
+  const inv = getInventory();
+  const low = inv.filter(p => p.stock <= 5).length;
+  document.getElementById('inventoryCount').textContent = inv.length + ' products';
+  document.getElementById('lowStockCount').textContent = low;
+
+  const tbody = document.getElementById('inventoryTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = inv.map(p => `
+    <tr>
+      <td><strong>${p.emoji || '👟'} ${p.name}</strong></td>
+      <td>${p.brand}</td>
+      <td>₹${p.price.toLocaleString()}</td>
+      <td style="text-transform:capitalize;">${p.category}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="adjustStock(${p.id}, -1)" style="background:var(--card);border:1px solid var(--border);color:var(--white);width:24px;height:24px;border-radius:4px;cursor:none;font-size:14px;display:flex;align-items:center;justify-content:center;">−</button>
+          <span id="stock-${p.id}" style="font-family:'Space Mono',monospace;font-size:12px;color:${p.stock <= 5 ? 'var(--gold)' : 'var(--green)'};">${p.stock}</span>
+          <button onclick="adjustStock(${p.id}, 1)" style="background:var(--card);border:1px solid var(--border);color:var(--white);width:24px;height:24px;border-radius:4px;cursor:none;font-size:14px;display:flex;align-items:center;justify-content:center;">+</button>
+        </div>
+      </td>
+      <td><span class="admin-badge ${p.stock > 5 ? 'delivered' : p.stock > 0 ? 'pending' : 'cancelled'}">${p.stock > 5 ? 'IN STOCK' : p.stock > 0 ? 'LOW' : 'OUT'}</span></td>
+      <td><button class="admin-action-btn" onclick="removeProduct(${p.id})" style="color:var(--red);border-color:var(--red);">Remove</button></td>
+    </tr>`).join('');
+}
+
+function adjustStock(id, delta) {
+  const inv = getInventory();
+  const p = inv.find(p => p.id === id);
+  if (!p) return;
+  p.stock = Math.max(0, p.stock + delta);
+  saveInventory(inv);
+  const el = document.getElementById('stock-' + id);
+  if (el) {
+    el.textContent = p.stock;
+    el.style.color = p.stock <= 5 ? 'var(--gold)' : 'var(--green)';
+  }
+  const low = inv.filter(p => p.stock <= 5).length;
+  document.getElementById('lowStockCount').textContent = low;
+  showToast(`✓ Stock updated: ${p.name} → ${p.stock}`, false);
+}
+
+function removeProduct(id) {
+  const inv = getInventory().filter(p => p.id !== id);
+  saveInventory(inv);
+  showToast('🗑️ Product removed from inventory', false);
+  loadInventory();
+}
+
+function toggleAddProductForm() {
+  const form = document.getElementById('addProductForm');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveNewProduct() {
+  const name     = document.getElementById('newProdName').value.trim();
+  const brand    = document.getElementById('newProdBrand').value.trim();
+  const price    = parseInt(document.getElementById('newProdPrice').value);
+  const orig     = parseInt(document.getElementById('newProdOrig').value) || null;
+  const category = document.getElementById('newProdCategory').value;
+  const tag      = document.getElementById('newProdTag').value;
+  const colorway = document.getElementById('newProdColorway').value.trim() || 'Classic';
+  const stock    = parseInt(document.getElementById('newProdStock').value) || 10;
+  const emoji    = document.getElementById('newProdEmoji').value.trim() || '👟';
+
+  if (!name || !brand || !price) {
+    showToast('⚠️ Name, Brand and Price are required', true);
+    return;
+  }
+
+  const inv = getInventory();
+  const newId = Math.max(...inv.map(p => p.id), 100) + 1;
+  const newProduct = { id: newId, name, brand, price, orig, category, tag, colorway, stock, emoji };
+  inv.unshift(newProduct);
+  saveInventory(inv);
+
+  // Also add to live products array so it shows on store page
+  products.unshift({ ...newProduct });
+  renderProducts(currentFilter);
+
+  showToast(`✓ ${name} added to inventory!`, false);
+  toggleAddProductForm();
+  loadInventory();
+
+  // Clear form
+  ['newProdName','newProdBrand','newProdPrice','newProdOrig','newProdColorway','newProdStock','newProdEmoji']
+    .forEach(id => { document.getElementById(id).value = ''; });
 }
 
 function refreshAdminData() {
@@ -4808,9 +5260,55 @@ function adminLogout() {
   showPage('storePage');
 }
 
-/* ─── INIT ─────────────────────────────────────────────────────────────────── */
+/* ─── INIT ───────── */
+
+// ── Boot: load inventory into products if saved ──────────────
+(function initInventory() {
+  const stored = localStorage.getItem('stylish_inventory');
+  if (stored) {
+    const inv = JSON.parse(stored);
+    inv.forEach(p => {
+      if (!products.find(pr => pr.id === p.id)) {
+        products.push(p);
+      }
+    });
+  }
+})();
+
+/* ─── FIELD VALIDATION ──────────────────────────────────────────────────────── */
+function validateDigits(el, requiredLen) {
+  // Strip any non-digit characters
+  el.value = el.value.replace(/\D/g, '');
+  const errEl = document.getElementById(el.id + 'Error');
+  if (el.value.length > 0 && el.value.length < requiredLen) {
+    el.classList.add('invalid');
+    if (errEl) errEl.classList.add('show');
+  } else {
+    el.classList.remove('invalid');
+    if (errEl) errEl.classList.remove('show');
+  }
+}
+
+function validatePhone(el) {
+  // Allow only digits, strip everything else
+  el.value = el.value.replace(/[^\d]/g, '');
+  const errEl = document.getElementById('phoneError');
+  if (el.value.length > 0 && el.value.length < 10) {
+    el.classList.add('invalid');
+    if (errEl) errEl.classList.add('show');
+  } else {
+    el.classList.remove('invalid');
+    if (errEl) errEl.classList.remove('show');
+  }
+}
+
+function showTrackOrder() {
+  const orderId = document.getElementById('orderIdDisplay').textContent;
+  document.getElementById('trackOrderId').textContent = orderId;
+  showPage('trackPage');
+}
+
 renderProducts('all');
 
 </script>
-</body>
 </html>
