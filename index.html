@@ -48,7 +48,7 @@ body {
   border-radius: 50%;
   position: fixed; top:0; left:0;
   pointer-events: none;
-  z-index: 9999;
+  z-index: 99999;
   transform: translate(-50%,-50%);
   transition: transform 0.1s, background 0.2s, width 0.2s, height 0.2s;
   mix-blend-mode: normal;
@@ -59,7 +59,7 @@ body {
   border-radius: 50%;
   position: fixed; top:0; left:0;
   pointer-events: none;
-  z-index: 9998;
+  z-index: 99998;
   transform: translate(-50%,-50%);
   transition: transform 0.18s ease-out, opacity 0.2s;
 }
@@ -2957,7 +2957,7 @@ footer {
       <div class="nav-actions">
         <button class="nav-icon-btn">🔍</button>
         <button class="nav-icon-btn">♡</button>
-        <button class="nav-icon-btn" onclick="showPage('loginPage')" title="Login">👤</button>
+        <button class="nav-icon-btn" id="navProfileBtn" onclick="navProfileClick()" title="Login">👤</button>
         <button class="cart-btn" onclick="openCart()">
           <span>🛒 BAG</span>
           <span class="cart-count" id="cartCount">0</span>
@@ -3623,7 +3623,7 @@ footer {
         </div>
 
         <div class="login-forgot">
-          <a href="#" class="login-forgot-link">Forgot password?</a>
+          <a href="#" class="login-forgot-link" onclick="openForgotModal(event)">Forgot password?</a>
         </div>
 
         <button type="submit" class="login-btn">SIGN IN</button>
@@ -3632,7 +3632,7 @@ footer {
       <div class="login-divider">OR</div>
 
       <div class="login-signup">
-        Don't have an account? <a href="#" class="login-signup-link">Sign up</a>
+        Don't have an account? <a href="#" class="login-signup-link" onclick="openSignupModal(event)">Sign up</a>
       </div>
     </div>
   </div>
@@ -4481,6 +4481,20 @@ function goToCheckout() {
   closeCart();
   renderSidebar();
   showPage('checkoutPage');
+  // Pre-fill email + name if logged in
+  if (isLoggedIn && currentUser && currentUser.type !== 'admin') {
+    const emailEl = document.getElementById('email');
+    if (emailEl && !emailEl.value) emailEl.value = currentUser.email || '';
+    const fnEl = document.getElementById('fname');
+    if (fnEl && !fnEl.value && currentUser.name) {
+      const parts = currentUser.name.split(' ');
+      fnEl.value = parts[0] || '';
+      const lnEl = document.getElementById('lname');
+      if (lnEl && parts.length > 1) lnEl.value = parts.slice(1).join(' ');
+    }
+    const phoneEl = document.getElementById('phone');
+    if (phoneEl && !phoneEl.value && currentUser.phone) phoneEl.value = currentUser.phone;
+  }
   setTimeout(() => {
     document.querySelectorAll('#checkoutPage .fade-up').forEach(el => el.classList.add('visible'));
   }, 100);
@@ -4575,11 +4589,15 @@ function placeOrder() {
   const dateStr = now.toISOString().split('T')[0];
 
   // ── Build order object ───────────────────────────────────────
+  // Use logged-in user's email if available, else checkout email
+  const orderEmail = (isLoggedIn && currentUser && currentUser.email) ? currentUser.email : email;
+
   const orderData = {
+    orderId: orderId,
     id: orderId,
-    date: dateStr,
+    date: now.toISOString(),
     customer: fname + ' ' + lname,
-    email, phone,
+    email: orderEmail, phone,
     address: { line1: addr1, line2: addr2, city, state, pin, country: 'India' },
     items: cart.map(c => ({ name: c.name, brand: c.brand, price: c.price, qty: c.qty, emoji: c.emoji })),
     subtotal, tax, codFee, total,
@@ -4869,26 +4887,114 @@ function toggleAcc(header) {
   }
 }
 
-/* ─── LOGIN & ADMIN ─────────────────────────────────────────────────────────── */
+/* ─── AUTH SYSTEM ────────────────────────────────────────────────────────────── */
 let currentLoginType = 'customer';
 let isLoggedIn = false;
 let currentUser = null;
 
-// Demo credentials
-const demoUsers = {
-  customer: { email: 'customer@demo.com', password: 'demo123', name: 'Demo Customer' },
-  admin: { username: 'admin', password: 'admin@321', name: 'Admin User' }
-};
+/* ── User DB helpers (localStorage) ── */
+function getUsers() {
+  return JSON.parse(localStorage.getItem('sh_users') || '[]');
+}
+function saveUsers(u) {
+  localStorage.setItem('sh_users', JSON.stringify(u));
+}
 
+/* ── Session helpers ── */
+function saveSession(u) { localStorage.setItem('sh_session', JSON.stringify(u)); }
+function clearSession()  { localStorage.removeItem('sh_session'); }
+function loadSession()   { try { return JSON.parse(localStorage.getItem('sh_session')); } catch(e){ return null; } }
+
+/* ── Seed demo customer once ── */
+(function seedDemo() {
+  const users = getUsers();
+  if (!users.find(u => u.email === 'customer@demo.com')) {
+    users.push({ name:'Demo Customer', email:'customer@demo.com', phone:'', password:'demo123' });
+    saveUsers(users);
+  }
+})();
+
+/* ── Boot: restore session, show login if brand-new visitor ── */
+(function boot() {
+  const session = loadSession();
+  if (session) {
+    isLoggedIn = true;
+    currentUser = session;
+    // Restore UI after DOM ready
+    setTimeout(() => {
+      updateNavBtn();
+      if (session.type !== 'admin') {
+        fillProfile(session);
+      }
+      // Stay on storePage (or wherever they were)
+    }, 0);
+  } else {
+    // First-time / logged-out visitor → show login page
+    setTimeout(() => showPage('loginPage'), 0);
+  }
+})();
+
+/* ── Nav profile button ── */
+function navProfileClick() {
+  if (isLoggedIn && currentUser && currentUser.type !== 'admin') {
+    fillProfile(currentUser);
+    showPage('profilePage');
+  } else {
+    showPage('loginPage');
+  }
+}
+
+function updateNavBtn() {
+  const btn = document.getElementById('navProfileBtn');
+  if (!btn) return;
+  if (isLoggedIn && currentUser && currentUser.type !== 'admin') {
+    btn.title = currentUser.name;
+    btn.innerHTML = '👤<span style="display:inline-block;width:7px;height:7px;background:#4caf50;border-radius:50%;vertical-align:top;margin-top:2px;margin-left:1px;"></span>';
+  } else {
+    btn.title = 'Login';
+    btn.innerHTML = '👤';
+  }
+}
+
+function fillProfile(user) {
+  const n = document.getElementById('profileName');
+  const e = document.getElementById('profileEmail');
+  if (n) n.textContent = user.name  || '';
+  if (e) e.textContent = user.email || '';
+  loadProfileOrders(user.email);
+}
+
+function loadProfileOrders(email) {
+  const tbody = document.getElementById('customerOrdersBody');
+  if (!tbody) return;
+  const all = JSON.parse(localStorage.getItem('stylish_orders') || '[]');
+  const mine = all.filter(o => (o.email||'').toLowerCase() === (email||'').toLowerCase());
+  if (!mine.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:28px;color:#888">No orders yet — start shopping! 🛒</td></tr>';
+    return;
+  }
+  tbody.innerHTML = mine.map(o => {
+    const oid = o.orderId || o.id || '—';
+    const dateStr = o.date ? o.date.slice(0,10) : '—';
+    const status = (o.status || 'pending').toLowerCase();
+    return `<tr>
+      <td><strong>${oid}</strong></td>
+      <td>${(o.items||[]).length} item(s)</td>
+      <td><strong>₹${(o.total||0).toLocaleString('en-IN')}</strong></td>
+      <td><span class="admin-badge ${status}">${status.toUpperCase()}</span></td>
+      <td>${dateStr}</td>
+      <td><button class="admin-action-btn" onclick="viewOrder('${oid}')">View</button></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Tab switch ── */
 function switchLoginTab(type) {
   currentLoginType = type;
   document.getElementById('customerTab').classList.toggle('active', type === 'customer');
   document.getElementById('adminTab').classList.toggle('active', type === 'admin');
-  
-  // Update form labels and placeholders
   const label = document.querySelector('.login-input-group .login-label');
   const input = document.getElementById('loginEmail');
-  
   if (type === 'admin') {
     label.textContent = 'USERNAME';
     input.placeholder = 'admin';
@@ -4900,44 +5006,151 @@ function switchLoginTab(type) {
   }
 }
 
+/* ── Login ── */
 function handleLogin(e) {
   e.preventDefault();
-  const emailOrUsername = document.getElementById('loginEmail').value;
-  const password = document.getElementById('loginPassword').value;
+  const id  = document.getElementById('loginEmail').value.trim();
+  const pwd = document.getElementById('loginPassword').value;
 
-  const user = demoUsers[currentLoginType];
-  
-  // Check credentials based on login type
-  let isValid = false;
   if (currentLoginType === 'admin') {
-    isValid = emailOrUsername === user.username && password === user.password;
-  } else {
-    isValid = emailOrUsername === user.email && password === user.password;
-  }
-  
-  if (isValid) {
-    isLoggedIn = true;
-    currentUser = { ...user, type: currentLoginType };
-    
-    if (currentLoginType === 'admin') {
-      // Admin -> Dashboard
-      document.getElementById('adminName').textContent = user.name;
+    if (id === 'admin' && pwd === 'admin@321') {
+      isLoggedIn = true;
+      currentUser = { name:'Admin User', username:'admin', type:'admin' };
+      saveSession(currentUser);
+      document.getElementById('adminName').textContent = 'Admin User';
       showPage('adminPage');
       loadAdminData();
       showToast('✓ Admin login successful', false);
+      document.getElementById('loginForm').reset();
     } else {
-      // Customer -> Profile Page
-      document.getElementById('profileName').textContent = user.name;
-      document.getElementById('profileEmail').textContent = user.email;
-      showPage('profilePage');
-      showToast('✓ Welcome back, ' + user.name, false);
+      showToast('⚠️ Invalid admin credentials', true);
     }
-    
-    // Clear form
+    return;
+  }
+
+  // Customer
+  const users = getUsers();
+  const found = users.find(u => u.email.toLowerCase() === id.toLowerCase() && u.password === pwd);
+  if (found) {
+    isLoggedIn = true;
+    currentUser = { ...found, type:'customer' };
+    saveSession(currentUser);
+    updateNavBtn();
+    fillProfile(currentUser);
+    showPage('profilePage');
+    showToast('✓ Welcome back, ' + found.name + '!', false);
     document.getElementById('loginForm').reset();
   } else {
-    showToast('⚠️ Invalid credentials', true);
+    showToast('⚠️ Invalid email or password', true);
   }
+}
+
+/* ── Logout ── */
+function customerLogout() {
+  isLoggedIn = false;
+  currentUser = null;
+  clearSession();
+  updateNavBtn();
+  showToast('👋 Logged out successfully', false);
+  showPage('loginPage');
+}
+function adminLogout() {
+  isLoggedIn = false;
+  currentUser = null;
+  clearSession();
+  updateNavBtn();
+  showToast('👋 Logged out successfully', false);
+  showPage('loginPage');
+}
+
+/* ── Sign-up modal ── */
+function openSignupModal(e) {
+  if(e) e.preventDefault();
+  document.getElementById('shSignupOverlay').style.display = 'flex';
+}
+function closeSignupModal() {
+  document.getElementById('shSignupOverlay').style.display = 'none';
+  document.getElementById('shSignupForm').reset();
+  document.getElementById('shSignupErr').textContent = '';
+}
+function handleSignup(e) {
+  e.preventDefault();
+  const name  = document.getElementById('shSuName').value.trim();
+  const email = document.getElementById('shSuEmail').value.trim().toLowerCase();
+  const phone = document.getElementById('shSuPhone').value.trim();
+  const pwd   = document.getElementById('shSuPwd').value;
+  const pwd2  = document.getElementById('shSuPwd2').value;
+  const err   = document.getElementById('shSignupErr');
+  err.textContent = '';
+
+  if (pwd.length < 6)        { err.textContent = 'Password must be at least 6 characters.'; return; }
+  if (pwd !== pwd2)          { err.textContent = 'Passwords do not match.'; return; }
+  const users = getUsers();
+  if (users.find(u => u.email === email)) { err.textContent = 'An account with this email already exists.'; return; }
+
+  users.push({ name, email, phone, password: pwd });
+  saveUsers(users);
+
+  isLoggedIn = true;
+  currentUser = { name, email, phone, password: pwd, type:'customer' };
+  saveSession(currentUser);
+  closeSignupModal();
+  updateNavBtn();
+  fillProfile(currentUser);
+  showPage('profilePage');
+  showToast('🎉 Welcome to Stylish Hub, ' + name + '!', false);
+}
+
+/* ── Forgot-password modal ── */
+let _fpEmail = '';
+
+function openForgotModal(e) {
+  if(e) e.preventDefault();
+  document.getElementById('shFpOverlay').style.display = 'flex';
+  document.getElementById('shFpStep1').style.display = 'block';
+  document.getElementById('shFpStep2').style.display = 'none';
+  document.getElementById('shFpEmailInput').value = '';
+  document.getElementById('shFpErr1').textContent = '';
+}
+function closeForgotModal() {
+  document.getElementById('shFpOverlay').style.display = 'none';
+}
+function handleFpSend(e) {
+  e.preventDefault();
+  const email = document.getElementById('shFpEmailInput').value.trim().toLowerCase();
+  const err   = document.getElementById('shFpErr1');
+  err.textContent = '';
+  const users = getUsers();
+  if (!users.find(u => u.email === email)) {
+    err.textContent = 'No account found with that email address.';
+    return;
+  }
+  _fpEmail = email;
+  document.getElementById('shFpStep1').style.display = 'none';
+  document.getElementById('shFpStep2').style.display = 'block';
+  document.getElementById('shFpEmailLabel').textContent = email;
+  document.getElementById('shFpErr2').textContent = '';
+  document.getElementById('shFpNewPwd').value = '';
+  document.getElementById('shFpNewPwd2').value = '';
+}
+function handleFpReset(e) {
+  e.preventDefault();
+  const p1  = document.getElementById('shFpNewPwd').value;
+  const p2  = document.getElementById('shFpNewPwd2').value;
+  const err = document.getElementById('shFpErr2');
+  err.textContent = '';
+  if (p1.length < 6) { err.textContent = 'Password must be at least 6 characters.'; return; }
+  if (p1 !== p2)     { err.textContent = 'Passwords do not match.'; return; }
+  const users = getUsers();
+  const idx = users.findIndex(u => u.email === _fpEmail);
+  if (idx !== -1) { users[idx].password = p1; saveUsers(users); }
+  // Update active session too if same user
+  if (currentUser && currentUser.email === _fpEmail) {
+    currentUser.password = p1;
+    saveSession(currentUser);
+  }
+  closeForgotModal();
+  showToast('✓ Password updated! Please sign in.', false);
 }
 
 function switchAdminTab(e, tab) {
@@ -5166,6 +5379,11 @@ function switchProfileTab(e, tab) {
     content.style.display = 'none';
   });
   document.getElementById('profile' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = 'block';
+
+  // Live-reload orders whenever the Orders tab is opened
+  if (tab === 'orders' && isLoggedIn && currentUser) {
+    loadProfileOrders(currentUser.email);
+  }
 }
 
 function handleAvatarChange(e) {
@@ -5246,20 +5464,6 @@ function deleteCard(id) {
   showToast('🗑️ Card removed', false);
 }
 
-function customerLogout() {
-  isLoggedIn = false;
-  currentUser = null;
-  showToast('👋 Logged out successfully', false);
-  showPage('storePage');
-}
-
-function adminLogout() {
-  isLoggedIn = false;
-  currentUser = null;
-  showToast('👋 Logged out successfully', false);
-  showPage('storePage');
-}
-
 /* ─── INIT ───────── */
 
 // ── Boot: load inventory into products if saved ──────────────
@@ -5311,4 +5515,132 @@ function showTrackOrder() {
 renderProducts('all');
 
 </script>
+
+<!-- ═══ SIGN-UP MODAL ═══════════════════════════════════════════════════════ -->
+<div id="shSignupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;">
+  <div class="sh-auth-modal" onclick="event.stopPropagation()">
+    <button class="sh-modal-x" onclick="closeSignupModal()">✕</button>
+    <div class="sh-modal-logo">STYLISH <span>HUB</span></div>
+    <div class="sh-modal-title">CREATE ACCOUNT</div>
+    <div class="sh-modal-sub">Join the sneaker community</div>
+    <form id="shSignupForm" onsubmit="handleSignup(event)">
+      <div class="login-input-group">
+        <label class="login-label">FULL NAME</label>
+        <input class="login-input" id="shSuName" type="text" placeholder="Your full name" required autocomplete="name"/>
+      </div>
+      <div class="login-input-group">
+        <label class="login-label">EMAIL ADDRESS</label>
+        <input class="login-input" id="shSuEmail" type="email" placeholder="you@example.com" required autocomplete="email"/>
+      </div>
+      <div class="login-input-group">
+        <label class="login-label">PHONE (optional)</label>
+        <input class="login-input" id="shSuPhone" type="tel" placeholder="+91 98765 43210" autocomplete="tel"/>
+      </div>
+      <div class="login-input-group">
+        <label class="login-label">PASSWORD</label>
+        <input class="login-input" id="shSuPwd" type="password" placeholder="Min 6 characters" required autocomplete="new-password"/>
+      </div>
+      <div class="login-input-group">
+        <label class="login-label">CONFIRM PASSWORD</label>
+        <input class="login-input" id="shSuPwd2" type="password" placeholder="Re-enter password" required autocomplete="new-password"/>
+      </div>
+      <div id="shSignupErr" class="sh-modal-err"></div>
+      <button type="submit" class="login-btn" style="margin-top:10px;">CREATE ACCOUNT</button>
+    </form>
+    <div class="login-divider">OR</div>
+    <div class="login-signup">Already have an account?
+      <a href="#" class="login-signup-link" onclick="closeSignupModal();showPage('loginPage');return false;">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FORGOT PASSWORD MODAL ═══════════════════════════════════════════════ -->
+<div id="shFpOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;">
+  <div class="sh-auth-modal" onclick="event.stopPropagation()">
+    <button class="sh-modal-x" onclick="closeForgotModal()">✕</button>
+    <div class="sh-modal-logo">STYLISH <span>HUB</span></div>
+
+    <!-- Step 1: enter email -->
+    <div id="shFpStep1">
+      <div class="sh-modal-title">FORGOT PASSWORD</div>
+      <div class="sh-modal-sub">Enter your registered email address</div>
+      <form onsubmit="handleFpSend(event)">
+        <div class="login-input-group">
+          <label class="login-label">EMAIL ADDRESS</label>
+          <input class="login-input" id="shFpEmailInput" type="email" placeholder="you@example.com" required/>
+        </div>
+        <div id="shFpErr1" class="sh-modal-err"></div>
+        <button type="submit" class="login-btn" style="margin-top:10px;">CONTINUE</button>
+      </form>
+    </div>
+
+    <!-- Step 2: set new password directly -->
+    <div id="shFpStep2" style="display:none;">
+      <div class="sh-modal-title">RESET PASSWORD</div>
+      <div class="sh-modal-sub">Set a new password for <strong id="shFpEmailLabel" style="color:#e63329;"></strong></div>
+      <form onsubmit="handleFpReset(event)">
+        <div class="login-input-group">
+          <label class="login-label">NEW PASSWORD</label>
+          <input class="login-input" id="shFpNewPwd" type="password" placeholder="Min 6 characters" required autocomplete="new-password"/>
+        </div>
+        <div class="login-input-group">
+          <label class="login-label">CONFIRM NEW PASSWORD</label>
+          <input class="login-input" id="shFpNewPwd2" type="password" placeholder="Re-enter new password" required autocomplete="new-password"/>
+        </div>
+        <div id="shFpErr2" class="sh-modal-err"></div>
+        <button type="submit" class="login-btn" style="margin-top:10px;">UPDATE PASSWORD</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.sh-auth-modal {
+  position:relative;
+  background:#1a1a1a;
+  border:1px solid #2a2a2a;
+  border-radius:14px;
+  padding:38px 34px 28px;
+  width:100%;
+  max-width:420px;
+  max-height:90vh;
+  overflow-y:auto;
+}
+.sh-modal-x {
+  position:absolute;top:14px;right:16px;
+  background:none;border:none;color:#888;
+  font-size:1.1rem;cursor:pointer;line-height:1;
+}
+.sh-modal-x:hover { color:#fff; }
+.sh-modal-logo {
+  text-align:center;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.6rem;
+  letter-spacing:3px;
+  color:#fff;
+  margin-bottom:6px;
+}
+.sh-modal-logo span { color:#e63329; }
+.sh-modal-title {
+  text-align:center;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.4rem;
+  letter-spacing:2px;
+  color:#fff;
+  margin-bottom:4px;
+}
+.sh-modal-sub {
+  text-align:center;
+  font-size:.85rem;
+  color:#888;
+  margin-bottom:20px;
+}
+.sh-modal-err {
+  color:#e63329;
+  font-size:.82rem;
+  min-height:18px;
+  margin:-4px 0 8px;
+}
+</style>
+
 </html>
