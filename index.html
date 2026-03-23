@@ -5083,6 +5083,8 @@ function handleSignup(e) {
   const err   = document.getElementById('shSignupErr');
   err.textContent = '';
 
+  if (!/^[a-zA-Z\s]+$/.test(name))                     { err.textContent = 'Name should contain letters only, no numbers or symbols.'; return; }
+  if (!/^[a-zA-Z][a-zA-Z0-9._%+-]*@gmail\.com$/.test(email)) { err.textContent = 'Please enter a valid @gmail.com email address.'; return; }
   if (pwd.length < 6)        { err.textContent = 'Password must be at least 6 characters.'; return; }
   if (pwd !== pwd2)          { err.textContent = 'Passwords do not match.'; return; }
   const users = getUsers();
